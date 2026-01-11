@@ -181,7 +181,7 @@ export const getAuthHeaders = (): Record<string, string> => {
 /**
  * 获取用于调试的 token 信息（不暴露实际 token 值）
  */
-export const getTokenInfo = () => {
+const getTokenInfo = () => {
   const token = authTokenManager.getToken()
 
   return {

@@ -467,7 +467,7 @@ class WorkflowIntegrationService {
 }
 
 // 单例模式
-export const workflowIntegrationService = new WorkflowIntegrationService()
+const workflowIntegrationService = new WorkflowIntegrationService()
 
 /**
  * 初始化工作流集成服务
@@ -475,23 +475,4 @@ export const workflowIntegrationService = new WorkflowIntegrationService()
  */
 export const initWorkflowIntegration = () => {
   workflowIntegrationService.init()
-}
-
-/**
- * 导出供外部使用的辅助函数
- */
-export const setWorkflowId = (workflowId: string) => {
-  workflowIntegrationService.setWorkflowId(workflowId)
-}
-
-export const getWorkflowId = () => {
-  return workflowIntegrationService.getWorkflowId()
-}
-
-export const clearWorkflowId = () => {
-  workflowIntegrationService.clearWorkflowId()
-}
-
-export const triggerWorkflowChange = (workflowData?: ComfyWorkflowJSON) => {
-  workflowIntegrationService.triggerWorkflowChange(workflowData)
 }
