@@ -34,7 +34,7 @@
           @click="onTabClick(tab)"
         />
         <!-- Hide templates button in editor-only mode -->
-        <SidebarTemplatesButton v-if="!isEditorOnly" />
+        <SidebarTemplatesButton />
       </div>
 
       <!-- Hide bottom toolbar in editor-only mode -->
