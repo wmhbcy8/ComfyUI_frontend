@@ -8,7 +8,7 @@ import type {
   ModelFile,
   ModelFolderInfo
 } from '@/platform/assets/schemas/assetSchema'
-import { isCloud } from '@/platform/distribution/types'
+import { isCloud, isEditorOnly } from '@/platform/distribution/types'
 import { useToastStore } from '@/platform/updates/common/toastStore'
 import { type WorkflowTemplates } from '@/platform/workflow/templates/types/template'
 import type {
@@ -397,6 +397,39 @@ export class ComfyApi extends EventTarget {
     }
   }
 
+  /**
+   * Gets the dynamic auth token from authTokenService for iframe embedding scenarios.
+   * This token is received via postMessage from the parent window.
+   * @returns The dynamic auth token, or null if not available
+   */
+  private async getDynamicAuthToken(): Promise<string | null> {
+    try {
+      const { authTokenManager } = await import('@/services/authTokenService')
+      return authTokenManager.getToken()
+    } catch (error) {
+      console.warn('[ComfyApi] Failed to get dynamic auth token:', error)
+      return null
+    }
+  }
+
+  /**
+   * Gets the dynamic auth headers from authTokenService for iframe embedding scenarios.
+   * This includes the Authorization header with the token received via postMessage.
+   * @returns The dynamic auth headers object, or null if not available
+   */
+  private async getDynamicAuthHeaders(): Promise<Record<
+    string,
+    string
+  > | null> {
+    try {
+      const { getAuthHeaders } = await import('@/services/authTokenService')
+      return getAuthHeaders()
+    } catch (error) {
+      console.warn('[ComfyApi] Failed to get dynamic auth headers:', error)
+      return null
+    }
+  }
+
   async fetchApi(route: string, options?: RequestInit) {
     const headers: HeadersInit = options?.headers ?? {}
 
@@ -420,6 +453,14 @@ export class ComfyApi extends EventTarget {
         for (const [key, value] of Object.entries(authHeader)) {
           addHeaderEntry(headers, key, value)
         }
+      }
+    }
+
+    // Add dynamic auth headers for iframe embedding scenarios
+    const dynamicAuthHeaders = await this.getDynamicAuthHeaders()
+    if (dynamicAuthHeaders) {
+      for (const [key, value] of Object.entries(dynamicAuthHeaders)) {
+        addHeaderEntry(headers, key, value)
       }
     }
 
@@ -496,6 +537,12 @@ export class ComfyApi extends EventTarget {
    * @param {boolean} isReconnect If the socket is connection is a reconnect attempt
    */
   private async createSocket(isReconnect?: boolean) {
+    // Disable WebSocket in editor-only mode
+    if (isEditorOnly) {
+      console.log('[Editor Mode] WebSocket connection disabled')
+      return
+    }
+
     if (this.socket) {
       return
     }
@@ -525,6 +572,16 @@ export class ComfyApi extends EventTarget {
           error
         )
       }
+    }
+
+    // Add dynamic auth token for iframe embedding scenarios
+    const dynamicAuthToken = await this.getDynamicAuthToken()
+    if (dynamicAuthToken) {
+      params.set('auth_token', dynamicAuthToken)
+      console.log('[ComfyApi] Using dynamic auth token for WebSocket:', {
+        tokenPrefix: dynamicAuthToken.slice(0, 10) + '...',
+        hasClientId: !!existingSession
+      })
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'

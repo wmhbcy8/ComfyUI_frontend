@@ -5,7 +5,7 @@
   <LiteGraphCanvasSplitterOverlay v-if="comfyAppReady">
     <template v-if="showUI" #workflow-tabs>
       <div
-        v-if="workflowTabsPosition === 'Topbar'"
+        v-if="workflowTabsPosition === 'Topbar' && !isEditorOnly"
         class="workflow-tabs-container pointer-events-auto relative h-9.5 w-full"
       >
         <!-- Native drag area for Electron -->
@@ -131,6 +131,7 @@ import { usePaste } from '@/composables/usePaste'
 import { useVueFeatureFlags } from '@/composables/useVueFeatureFlags'
 import { mergeCustomNodesI18n, t } from '@/i18n'
 import { LiteGraph } from '@/lib/litegraph/src/litegraph'
+import { isEditorOnly } from '@/platform/distribution/types'
 import { useLitegraphSettings } from '@/platform/settings/composables/useLitegraphSettings'
 import { CORE_SETTINGS } from '@/platform/settings/constants/coreSettings'
 import { useSettingStore } from '@/platform/settings/settingStore'

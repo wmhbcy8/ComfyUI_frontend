@@ -18,7 +18,8 @@
       "
     >
       <div ref="topToolbarRef" :class="groupClasses">
-        <ComfyMenuButton />
+        <!-- Hide main menu button in editor-only mode -->
+        <ComfyMenuButton v-if="!isEditorOnly" />
         <SidebarIcon
           v-for="tab in tabs"
           :key="tab.id"
@@ -32,10 +33,17 @@
           :class="tab.id + '-tab-button'"
           @click="onTabClick(tab)"
         />
-        <SidebarTemplatesButton />
+        <!-- Hide templates button in editor-only mode -->
+        <SidebarTemplatesButton v-if="!isEditorOnly" />
       </div>
 
-      <div ref="bottomToolbarRef" class="mt-auto" :class="groupClasses">
+      <!-- Hide bottom toolbar in editor-only mode -->
+      <div
+        v-if="!isEditorOnly"
+        ref="bottomToolbarRef"
+        class="mt-auto"
+        :class="groupClasses"
+      >
         <SidebarLogoutIcon
           v-if="userStore.isMultiUserServer"
           :is-small="isSmall"
@@ -58,6 +66,7 @@ import ComfyMenuButton from '@/components/sidebar/ComfyMenuButton.vue'
 import SidebarBottomPanelToggleButton from '@/components/sidebar/SidebarBottomPanelToggleButton.vue'
 import SidebarSettingsButton from '@/components/sidebar/SidebarSettingsButton.vue'
 import SidebarShortcutsToggleButton from '@/components/sidebar/SidebarShortcutsToggleButton.vue'
+import { isEditorOnly } from '@/platform/distribution/types'
 import { useSettingStore } from '@/platform/settings/settingStore'
 import { useTelemetry } from '@/platform/telemetry'
 import { useCanvasStore } from '@/renderer/core/canvas/canvasStore'
@@ -96,7 +105,14 @@ const isConnected = computed(
     sidebarStyle.value === 'connected'
 )
 
-const tabs = computed(() => workspaceStore.getSidebarTabs())
+const tabs = computed(() => {
+  const allTabs = workspaceStore.getSidebarTabs()
+  // In editor-only mode, only show the node library tab
+  if (isEditorOnly) {
+    return allTabs.filter((tab) => tab.id === 'node-library')
+  }
+  return allTabs
+})
 const selectedTab = computed(() => workspaceStore.sidebarTab.activeSidebarTab)
 
 /**
@@ -154,12 +170,11 @@ const ENTER_OVERFLOW_MARGIN = 20
 const EXIT_OVERFLOW_MARGIN = 50
 
 const checkOverflow = debounce(() => {
-  if (!sideToolbarRef.value || !topToolbarRef.value || !bottomToolbarRef.value)
-    return
+  if (!sideToolbarRef.value || !topToolbarRef.value) return
 
   const containerHeight = sideToolbarRef.value.clientHeight
   const topHeight = topToolbarRef.value.scrollHeight
-  const bottomHeight = bottomToolbarRef.value.scrollHeight
+  const bottomHeight = bottomToolbarRef.value?.scrollHeight ?? 0
   const contentHeight = topHeight + bottomHeight
 
   if (isOverflowing.value) {

@@ -1,5 +1,6 @@
 <template>
   <div
+    v-if="!isEditorOnly"
     ref="containerRef"
     class="workflow-tabs-container flex h-full max-w-full flex-auto flex-row overflow-hidden"
     :class="{ 'workflow-tabs-container-desktop': isDesktop }"
@@ -84,6 +85,7 @@ import { useI18n } from 'vue-i18n'
 import WorkflowTab from '@/components/topbar/WorkflowTab.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { useOverflowObserver } from '@/composables/element/useOverflowObserver'
+import { isEditorOnly } from '@/platform/distribution/types'
 import { useWorkflowService } from '@/platform/workflow/core/services/workflowService'
 import type { ComfyWorkflow } from '@/platform/workflow/management/stores/workflowStore'
 import {

@@ -31,6 +31,7 @@ import {
 import { generateUUID, getPathDetails } from '@/utils/formatUtil'
 import { syncEntities } from '@/utils/syncUtil'
 import { isSubgraph } from '@/utils/typeGuardUtil'
+import { isEditorOnly } from '@/platform/distribution/types'
 
 export class ComfyWorkflow extends UserFile {
   static readonly basePath: string = 'workflows/'
@@ -315,6 +316,29 @@ export const useWorkflowStore = defineStore('workflow', () => {
     workflow: ComfyWorkflow
   ): Promise<LoadedComfyWorkflow> => {
     if (isActive(workflow)) return workflow as LoadedComfyWorkflow
+
+    // In editor-only mode, close the current workflow before opening a new one
+    // to ensure only one workflow tab exists at any time
+    if (
+      isEditorOnly &&
+      activeWorkflow.value &&
+      !openWorkflowPaths.value.includes(workflow.path)
+    ) {
+      const currentPath = activeWorkflow.value.path
+      if (currentPath !== workflow.path) {
+        // Remove the current workflow path before adding the new one
+        openWorkflowPaths.value = openWorkflowPaths.value.filter(
+          (p) => p !== currentPath
+        )
+        // Unload the temporary workflow to clean up resources
+        if (activeWorkflow.value.isTemporary) {
+          clearThumbnail(activeWorkflow.value.key)
+          delete workflowLookup.value[currentPath]
+        } else {
+          activeWorkflow.value.unload()
+        }
+      }
+    }
 
     if (!openWorkflowPaths.value.includes(workflow.path)) {
       openWorkflowPaths.value.push(workflow.path)

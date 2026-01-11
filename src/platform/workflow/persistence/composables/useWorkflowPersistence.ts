@@ -7,6 +7,7 @@ import {
   mergePreservedQueryIntoQuery
 } from '@/platform/navigation/preservedQueryManager'
 import { PRESERVED_QUERY_NAMESPACES } from '@/platform/navigation/preservedQueryNamespaces'
+import { isEditorOnly } from '@/platform/distribution/types'
 import { useSettingStore } from '@/platform/settings/settingStore'
 import { useWorkflowService } from '@/platform/workflow/core/services/workflowService'
 import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
@@ -136,16 +137,29 @@ export function useWorkflowPersistence() {
     (activeWorkflowKey) => {
       if (!activeWorkflowKey) return
       setStorageValue('Comfy.PreviousWorkflow', activeWorkflowKey)
-      // When the activeWorkflow changes, the graph has already been loaded.
-      // Saving the current state of the graph to the localStorage.
-      persistCurrentWorkflow()
+
+      // In editor-only mode, workflowIntegrationService handles saving via postMessage
+      // In standard mode, save to localStorage
+      if (!isEditorOnly) {
+        persistCurrentWorkflow()
+      }
     }
   )
-  api.addEventListener('graphChanged', persistCurrentWorkflow)
+
+  // Listen to graph changes and save accordingly
+  const handleGraphChange = () => {
+    // In editor-only mode, workflowIntegrationService handles saving via postMessage
+    // In standard mode, save to localStorage
+    if (!isEditorOnly) {
+      persistCurrentWorkflow()
+    }
+  }
+
+  api.addEventListener('graphChanged', handleGraphChange)
 
   // Clean up event listener when component unmounts
   tryOnScopeDispose(() => {
-    api.removeEventListener('graphChanged', persistCurrentWorkflow)
+    api.removeEventListener('graphChanged', handleGraphChange)
   })
 
   // Restore workflow tabs states

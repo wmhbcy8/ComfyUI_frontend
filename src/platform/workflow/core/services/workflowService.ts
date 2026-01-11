@@ -18,6 +18,7 @@ import { useDialogService } from '@/services/dialogService'
 import { useDomWidgetStore } from '@/stores/domWidgetStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { appendJsonExt } from '@/utils/formatUtil'
+import { isEditorOnly } from '@/platform/distribution/types'
 
 export const useWorkflowService = () => {
   const settingStore = useSettingStore()
@@ -195,6 +196,11 @@ export const useWorkflowService = () => {
       warnIfUnsaved: true
     }
   ): Promise<boolean> => {
+    // In editor-only mode, prevent closing the only workflow tab
+    if (isEditorOnly && workflowStore.openWorkflows.length === 1) {
+      return false
+    }
+
     if (workflow.isModified && options.warnIfUnsaved) {
       const confirmed = await dialogService.confirm({
         title: t('sideToolbar.workflowTab.dirtyCloseTitle'),
@@ -328,6 +334,16 @@ export const useWorkflowService = () => {
             await workflowStore.openWorkflow(existingWorkflow)
           loadedWorkflow.changeTracker.reset(workflowData)
           loadedWorkflow.changeTracker.restore()
+          return
+        }
+      }
+
+      // In editor-only mode, reuse the current workflow instead of creating a new one
+      if (isEditorOnly) {
+        const currentWorkflow = workflowStore.activeWorkflow
+        if (currentWorkflow) {
+          currentWorkflow.changeTracker.reset(workflowData)
+          currentWorkflow.changeTracker.restore()
           return
         }
       }

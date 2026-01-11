@@ -20,6 +20,7 @@ import { t } from '@/i18n'
 import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
 import { app } from '@/scripts/app'
 import { useDialogService } from '@/services/dialogService'
+import { initWorkflowIntegration } from '@/services/workflowIntegrationService'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useConflictDetection } from '@/workbench/extensions/manager/composables/useConflictDetection'
 
@@ -77,5 +78,8 @@ onMounted(() => {
   // Initialize conflict detection in background
   // This runs async and doesn't block UI setup
   void conflictDetection.initializeConflictDetection()
+
+  // Initialize workflow integration service for iframe embedding
+  initWorkflowIntegration()
 })
 </script>

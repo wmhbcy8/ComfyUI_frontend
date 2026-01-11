@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="!workspaceStore.focusMode"
+    v-if="!workspaceStore.focusMode && !isEditorOnly"
     class="ml-1 flex gap-x-0.5 pt-1"
     @mouseenter="isTopMenuHovered = true"
     @mouseleave="isTopMenuHovered = false"
@@ -12,7 +12,7 @@
     <div class="mx-1 flex flex-col items-end gap-1">
       <div class="flex items-center gap-2">
         <div
-          v-if="managerState.shouldShowManagerButtons.value"
+          v-if="!isEditorOnly && managerState.shouldShowManagerButtons.value"
           class="pointer-events-auto flex h-12 shrink-0 items-center rounded-lg border border-interface-stroke bg-comfy-menu-bg px-2 shadow-interface"
         >
           <Button
@@ -91,6 +91,7 @@ import Button from '@/components/ui/button/Button.vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
 import { useErrorHandling } from '@/composables/useErrorHandling'
 import { buildTooltipConfig } from '@/composables/useTooltipConfig'
+import { isEditorOnly } from '@/platform/distribution/types'
 import { app } from '@/scripts/app'
 import { useCommandStore } from '@/stores/commandStore'
 import { useQueueStore, useQueueUIStore } from '@/stores/queueStore'
