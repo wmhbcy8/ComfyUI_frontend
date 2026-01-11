@@ -235,6 +235,7 @@ class WorkflowIntegrationService {
 
   /**
    * 处理请求工作流 JSON
+   * 同时返回 Canvas 格式（用于编辑）和 API 格式（用于执行）
    */
   private async handleRequestWorkflowJson(
     messageData: { source?: string },
@@ -246,15 +247,23 @@ class WorkflowIntegrationService {
     try {
       // 导入 app 避免循环依赖
       const { app } = await import('@/scripts/app')
+      const { graphToPrompt } = await import('@/utils/executionUtil')
 
-      // 序列化当前工作流
+      // 序列化当前工作流（Canvas 格式）
       const workflowData = app.rootGraph.serialize() as ComfyWorkflowJSON
       const workflowJsonString = JSON.stringify(workflowData)
 
-      // 发送响应
+      // 转换为 API 执行格式
+      const { output: apiWorkflow } = await graphToPrompt(app.rootGraph, {
+        sortNodes: useSettingStore().get('Comfy.Workflow.SortNodeIdOnSave')
+      })
+      const workflowApiJsonString = JSON.stringify(apiWorkflow)
+
+      // 发送响应（包含两种格式）
       const response = {
         type: 'COMFYUI_WORKFLOW_JSON_RESPONSE',
         workflowJson: workflowJsonString,
+        workflowApiJson: workflowApiJsonString,
         source: requestSource,
         timestamp: Date.now()
       }

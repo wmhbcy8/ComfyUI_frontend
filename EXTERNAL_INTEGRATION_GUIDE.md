@@ -109,7 +109,10 @@ window.addEventListener('message', (event) => {
       break
 
     case 'COMFYUI_WORKFLOW_JSON_RESPONSE':
-      console.log('[Parent] Received workflow JSON:', data)
+      const canvasWorkflow = JSON.parse(data.workflowJson)
+      const apiWorkflow = JSON.parse(data.workflowApiJson)
+      console.log('[Parent] Canvas format:', canvasWorkflow)
+      console.log('[Parent] API format:', apiWorkflow)
       break
 
     case 'COMFYUI_LOAD_WORKFLOW_ACK':
@@ -173,6 +176,10 @@ window.addEventListener('message', (event) => {
 
 ### 工作流数据结构
 
+#### Canvas 格式（用于编辑）
+
+`workflowJson` 包含完整的画布信息，适合编辑和可视化：
+
 ```json
 {
   "version": 0.4,
@@ -198,6 +205,46 @@ window.addEventListener('message', (event) => {
   "extra": {}
 }
 ```
+
+#### API 格式（用于执行）
+
+`workflowApiJson` 是后端执行格式，可直接用于队列提交：
+
+```json
+{
+  "1": {
+    "inputs": {
+      "seed": 123456,
+      "steps": 20,
+      "cfg": 7,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "model": ["4", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["5", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "2": {
+    "inputs": {
+      "text": "positive prompt"
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive Prompt"
+    }
+  }
+}
+```
+
+**关键区别：**
+- Canvas 格式包含 UI 信息（位置、尺寸、颜色）
+- API 格式只包含执行所需的数据
+- API 格式中节点连接用 `[nodeId, slotIndex]` 表示
 
 ---
 
@@ -239,10 +286,15 @@ iframe.contentWindow.postMessage({
 {
   type: 'COMFYUI_WORKFLOW_JSON_RESPONSE',
   workflowJson: '{"version":0.4,"nodes":[...]}',
+  workflowApiJson: '{"1":{"inputs":{...},"class_type":"KSampler"}}',
   source: 'manual',
   timestamp: 1704800000000
 }
 ```
+
+**字段说明：**
+- `workflowJson` - Canvas 格式（用于编辑），包含节点位置、尺寸等 UI 信息
+- `workflowApiJson` - API 格式（用于执行），包含节点输入值和连接关系，可直接用于队列执行
 
 #### 3. 清空画布
 
@@ -605,8 +657,12 @@ iframe.contentWindow.postMessage({
           if (data.error) {
             addLog(`❌ 获取工作流失败: ${data.error}`)
           } else {
-            const workflow = JSON.parse(data.workflowJson)
-            addLog(`✅ 收到工作流: ${workflow.nodes.length} 个节点`)
+            const canvasWorkflow = JSON.parse(data.workflowJson)
+            const apiWorkflow = JSON.parse(data.workflowApiJson)
+            addLog(`✅ 收到 Canvas 格式: ${canvasWorkflow.nodes.length} 个节点`)
+            addLog(`✅ 收到 API 格式: ${Object.keys(apiWorkflow).length} 个可执行节点`)
+            // 使用 canvasWorkflow 进行编辑
+            // 使用 apiWorkflow 直接提交执行
           }
           break
 
