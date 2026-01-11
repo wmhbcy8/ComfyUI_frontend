@@ -296,6 +296,49 @@ iframe.contentWindow.postMessage({
 }
 ```
 
+#### 6. 切换语言
+
+```javascript
+iframe.contentWindow.postMessage({
+  type: 'COMFYUI_SET_LOCALE',
+  locale: 'zh' // 语言代码
+}, '*')
+```
+
+**支持的语言代码：**
+- `en` - English
+- `zh` - 中文
+- `zh-TW` - 繁體中文
+- `ru` - Русский
+- `ja` - 日本語
+- `ko` - 한국어
+- `fr` - Français
+- `es` - Español
+- `ar` - عربي
+- `tr` - Türkçe
+- `pt-BR` - Português (BR)
+
+**响应：**
+```javascript
+{
+  type: 'COMFYUI_SET_LOCALE_ACK',
+  locale: 'zh',
+  success: true,
+  timestamp: 1704800000000
+}
+```
+
+**失败响应：**
+```javascript
+{
+  type: 'COMFYUI_SET_LOCALE_ACK',
+  locale: 'xx',
+  success: false,
+  error: 'Unsupported locale: "xx". Supported locales: en, zh, zh-TW, ...',
+  timestamp: 1704800000000
+}
+```
+
 ### ComfyUI → 父页面
 
 #### 1. 工作流变化
@@ -449,6 +492,20 @@ iframe.contentWindow.postMessage({
     <button onclick="requestWorkflow()">请求工作流</button>
     <button onclick="clearCanvas()">清空画布</button>
     <button onclick="resetView()">重置视图</button>
+    <select id="locale-select" onchange="setLocale(this.value)">
+      <option value="">选择语言</option>
+      <option value="en">English</option>
+      <option value="zh">中文</option>
+      <option value="zh-TW">繁體中文</option>
+      <option value="ru">Русский</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+      <option value="fr">Français</option>
+      <option value="es">Español</option>
+      <option value="ar">عربي</option>
+      <option value="tr">Türkçe</option>
+      <option value="pt-BR">Português (BR)</option>
+    </select>
   </div>
 
   <div id="comfyui-container">
@@ -507,6 +564,17 @@ iframe.contentWindow.postMessage({
       addLog('重置视图')
     }
 
+    // 切换语言
+    function setLocale(locale) {
+      if (!locale) return
+
+      iframe.contentWindow.postMessage({
+        type: 'COMFYUI_SET_LOCALE',
+        locale: locale
+      }, ALLOWED_ORIGIN)
+      addLog(`切换语言到: ${locale}`)
+    }
+
     // 监听来自 ComfyUI 的消息
     window.addEventListener('message', (event) => {
       // 验证来源
@@ -548,6 +616,14 @@ iframe.contentWindow.postMessage({
 
         case 'COMFYUI_RESET_VIEW_ACK':
           addLog(`✅ 视图已重置: ${data.success}`)
+          break
+
+        case 'COMFYUI_SET_LOCALE_ACK':
+          if (data.success) {
+            addLog(`✅ 语言已切换: ${data.locale}`)
+          } else {
+            addLog(`❌ 切换语言失败: ${data.error}`)
+          }
           break
 
         default:

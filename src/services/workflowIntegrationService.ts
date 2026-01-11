@@ -8,15 +8,19 @@
  *
  * 父页面 → ComfyUI:
  * - COMFYUI_LOAD_WORKFLOW { workflowJson, workflowId }
+ * - COMFYUI_SET_LOCALE { locale }
  *
  * ComfyUI → 父页面:
  * - COMFYUI_WORKFLOW_CHANGE { workflowJson, workflowId }
  * - COMFYUI_LOAD_WORKFLOW_ACK { workflowId, success, error? }
+ * - COMFYUI_SET_LOCALE_ACK { locale, success, error? }
  */
 
 import { api } from '@/scripts/api'
 import type { ComfyWorkflowJSON } from '@/platform/workflow/validation/schemas/workflowSchema'
 import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
+import { loadLocale } from '@/i18n'
+import { useSettingStore } from '@/platform/settings/settingStore'
 
 /**
  * 防抖延迟（毫秒）
@@ -24,6 +28,23 @@ import { useWorkflowStore } from '@/platform/workflow/management/stores/workflow
  * 与父前端的防抖时间保持一致（3秒）
  */
 const WORKFLOW_CHANGE_DEBOUNCE_MS = 1000
+
+/**
+ * 支持的语言列表
+ */
+const SUPPORTED_LOCALES = [
+  'en',
+  'zh',
+  'zh-TW',
+  'ru',
+  'ja',
+  'ko',
+  'fr',
+  'es',
+  'ar',
+  'tr',
+  'pt-BR'
+] as const
 
 /**
  * 工作流集成服务类
@@ -149,6 +170,10 @@ class WorkflowIntegrationService {
 
         case 'COMFYUI_RESET_VIEW':
           this.handleResetView(event.source as Window, event.origin)
+          break
+
+        case 'COMFYUI_SET_LOCALE':
+          this.handleSetLocale(event.data, event.source as Window, event.origin)
           break
       }
     })
@@ -322,6 +347,70 @@ class WorkflowIntegrationService {
       // 发送错误响应
       const ackMessage = {
         type: 'COMFYUI_RESET_VIEW_ACK',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: Date.now()
+      }
+
+      source.postMessage(ackMessage, origin)
+    }
+  }
+
+  /**
+   * 处理设置语言请求
+   */
+  private async handleSetLocale(
+    data: { locale: string },
+    source: Window,
+    origin: string
+  ) {
+    const { locale } = data
+
+    // 验证 locale 是否支持
+    if (
+      !locale ||
+      typeof locale !== 'string' ||
+      !SUPPORTED_LOCALES.includes(locale as any)
+    ) {
+      const errorMessage = `Unsupported locale: "${locale}". Supported locales: ${SUPPORTED_LOCALES.join(', ')}`
+      console.error('[WorkflowIntegration] ❌', errorMessage)
+
+      const ackMessage = {
+        type: 'COMFYUI_SET_LOCALE_ACK',
+        locale: locale || '',
+        success: false,
+        error: errorMessage,
+        timestamp: Date.now()
+      }
+
+      source.postMessage(ackMessage, origin)
+      return
+    }
+
+    try {
+      // 加载语言包
+      await loadLocale(locale)
+
+      // 设置语言
+      const settingStore = useSettingStore()
+      settingStore.set('Comfy.Locale', locale)
+
+      // 发送成功确认
+      const ackMessage = {
+        type: 'COMFYUI_SET_LOCALE_ACK',
+        locale: locale,
+        success: true,
+        timestamp: Date.now()
+      }
+
+      source.postMessage(ackMessage, origin)
+    } catch (error) {
+      console.error('[WorkflowIntegration] ❌ Failed to set locale:', error)
+
+      // 发送失败确认
+      const ackMessage = {
+        type: 'COMFYUI_SET_LOCALE_ACK',
+        locale: locale,
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: Date.now()
