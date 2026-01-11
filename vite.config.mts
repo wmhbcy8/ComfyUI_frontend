@@ -495,7 +495,7 @@ export default defineConfig({
     __USE_PROD_CONFIG__: process.env.USE_PROD_CONFIG === 'true',
     __DISTRIBUTION__: JSON.stringify(DISTRIBUTION),
     __EDITOR_ONLY_MODE__: JSON.stringify(
-      process.env.EDITOR_ONLY_MODE === 'true'
+      process.env.EDITOR_ONLY_MODE !== 'false'
     )
   },
 
