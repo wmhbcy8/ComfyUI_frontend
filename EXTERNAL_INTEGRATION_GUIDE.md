@@ -102,18 +102,23 @@ window.addEventListener('message', (event) => {
       console.log('[Parent] Auth acknowledged by ComfyUI:', data)
       break
 
-    case 'COMFYUI_WORKFLOW_CHANGE':
-      console.log('[Parent] Workflow changed:', data)
+    case 'COMFYUI_WORKFLOW_CHANGE': {
+      const canvasWorkflow = JSON.parse(data.workflowJson)
+      const apiWorkflow = JSON.parse(data.workflowApiJson)
+      console.log('[Parent] Workflow changed:', { canvasWorkflow, apiWorkflow })
       // 处理工作流变化
-      saveWorkflowToYourBackend(data.workflowJson)
+      saveWorkflowToYourBackend(canvasWorkflow)
+      // 或者直接使用 apiWorkflow 执行
       break
+    }
 
-    case 'COMFYUI_WORKFLOW_JSON_RESPONSE':
+    case 'COMFYUI_WORKFLOW_JSON_RESPONSE': {
       const canvasWorkflow = JSON.parse(data.workflowJson)
       const apiWorkflow = JSON.parse(data.workflowApiJson)
       console.log('[Parent] Canvas format:', canvasWorkflow)
       console.log('[Parent] API format:', apiWorkflow)
       break
+    }
 
     case 'COMFYUI_LOAD_WORKFLOW_ACK':
       console.log('[Parent] Load workflow result:', data)
@@ -395,13 +400,20 @@ iframe.contentWindow.postMessage({
 
 #### 1. 工作流变化
 
+当用户在 ComfyUI 中编辑工作流时，会自动发送此事件（防抖 1 秒）：
+
 ```javascript
 {
   type: 'COMFYUI_WORKFLOW_CHANGE',
   workflowJson: '{"version":0.4,"nodes":[...]}',
+  workflowApiJson: '{"1":{"inputs":{...},"class_type":"KSampler"}}',
   timestamp: 1704800000000
 }
 ```
+
+**字段说明：**
+- `workflowJson` - Canvas 格式（用于编辑），包含节点位置、尺寸等 UI 信息
+- `workflowApiJson` - API 格式（用于执行），包含节点输入值和连接关系
 
 #### 2. Auth Ready（iframe 初始化完成）
 
@@ -646,12 +658,16 @@ iframe.contentWindow.postMessage({
           sendAuth()
           break
 
-        case 'COMFYUI_WORKFLOW_CHANGE':
-          const workflow = JSON.parse(data.workflowJson)
-          addLog(`📊 工作流变化: ${workflow.nodes.length} 个节点`)
+        case 'COMFYUI_WORKFLOW_CHANGE': {
+          const canvasWorkflow = JSON.parse(data.workflowJson)
+          const apiWorkflow = JSON.parse(data.workflowApiJson)
+          addLog(`📊 工作流变化: ${canvasWorkflow.nodes.length} 个节点`)
+          addLog(`✅ API 格式: ${Object.keys(apiWorkflow).length} 个可执行节点`)
           // 保存到你的后端
           // saveWorkflowToBackend(data.workflowJson)
+          // 或者直接使用 apiWorkflow 执行
           break
+        }
 
         case 'COMFYUI_WORKFLOW_JSON_RESPONSE':
           if (data.error) {

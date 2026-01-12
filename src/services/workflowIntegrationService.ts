@@ -11,9 +11,14 @@
  * - COMFYUI_SET_LOCALE { locale }
  *
  * ComfyUI → 父页面:
- * - COMFYUI_WORKFLOW_CHANGE { workflowJson, workflowId }
+ * - COMFYUI_WORKFLOW_CHANGE { workflowJson, workflowApiJson, timestamp }
+ * - COMFYUI_WORKFLOW_JSON_RESPONSE { workflowJson, workflowApiJson, source, timestamp }
  * - COMFYUI_LOAD_WORKFLOW_ACK { workflowId, success, error? }
  * - COMFYUI_SET_LOCALE_ACK { locale, success, error? }
+ *
+ * 数据格式说明:
+ * - workflowJson: Canvas 格式（用于编辑），包含节点位置、尺寸等 UI 信息
+ * - workflowApiJson: API 格式（用于执行），包含节点输入值和连接关系
  */
 
 import { api } from '@/scripts/api'
@@ -94,7 +99,7 @@ class WorkflowIntegrationService {
    * 处理工作流变化
    * 使用防抖避免频繁发送消息
    */
-  private handleWorkflowChange(workflowData: ComfyWorkflowJSON) {
+  private async handleWorkflowChange(workflowData: ComfyWorkflowJSON) {
     if (!this.isIframe || !window.parent) {
       return
     }
@@ -105,27 +110,40 @@ class WorkflowIntegrationService {
     }
 
     // 设置新的防抖定时器
-    this.workflowChangeTimer = setTimeout(() => {
-      this.sendWorkflowChangeMessage(workflowData)
+    this.workflowChangeTimer = setTimeout(async () => {
+      await this.sendWorkflowChangeMessage(workflowData)
     }, WORKFLOW_CHANGE_DEBOUNCE_MS)
   }
 
   /**
    * 发送工作流变化消息到父页面
+   * 同时返回 Canvas 格式（用于编辑）和 API 格式（用于执行）
    */
-  private sendWorkflowChangeMessage(workflowData: ComfyWorkflowJSON) {
+  private async sendWorkflowChangeMessage(workflowData: ComfyWorkflowJSON) {
     if (!window.parent) return
 
-    // 序列化为 JSON 字符串（父前端期望字符串格式）
-    const workflowJsonString = JSON.stringify(workflowData)
-
-    const message = {
-      type: 'COMFYUI_WORKFLOW_CHANGE',
-      workflowJson: workflowJsonString, // JSON 字符串，不是对象
-      timestamp: Date.now()
-    }
-
     try {
+      // 导入 app 和 graphToPrompt
+      const { app } = await import('@/scripts/app')
+      const { graphToPrompt } = await import('@/utils/executionUtil')
+
+      // 序列化 Canvas 格式
+      const workflowJsonString = JSON.stringify(workflowData)
+
+      // 转换为 API 执行格式
+      const { output: apiWorkflow } = await graphToPrompt(app.rootGraph, {
+        sortNodes: useSettingStore().get('Comfy.Workflow.SortNodeIdOnSave')
+      })
+      const workflowApiJsonString = JSON.stringify(apiWorkflow)
+
+      // 发送消息（包含两种格式）
+      const message = {
+        type: 'COMFYUI_WORKFLOW_CHANGE',
+        workflowJson: workflowJsonString,
+        workflowApiJson: workflowApiJsonString,
+        timestamp: Date.now()
+      }
+
       window.parent.postMessage(message, '*')
     } catch (error) {
       console.error(
@@ -433,7 +451,7 @@ class WorkflowIntegrationService {
    * 手动触发工作流变化消息
    * 用于外部需要立即发送工作流状态的场景
    */
-  triggerWorkflowChange(workflowData?: ComfyWorkflowJSON) {
+  async triggerWorkflowChange(workflowData?: ComfyWorkflowJSON) {
     const workflowStore = useWorkflowStore()
     let data = workflowData
 
@@ -448,7 +466,7 @@ class WorkflowIntegrationService {
         clearTimeout(this.workflowChangeTimer)
         this.workflowChangeTimer = null
       }
-      this.sendWorkflowChangeMessage(data)
+      await this.sendWorkflowChangeMessage(data)
     }
   }
 
