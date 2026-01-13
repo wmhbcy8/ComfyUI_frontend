@@ -424,6 +424,341 @@ iframe.contentWindow.postMessage({
 }
 ```
 
+#### 3. 执行开始
+
+当工作流开始执行时发送：
+
+```javascript
+{
+  type: 'COMFYUI_EXECUTION_START',
+  promptId: 'uuid-string',
+  timestamp: 1704800000000
+}
+```
+
+#### 4. 节点开始执行
+
+当某个节点开始执行时发送：
+
+```javascript
+{
+  type: 'COMFYUI_NODE_EXECUTING',
+  nodeId: '1',
+  promptId: 'uuid-string',
+  timestamp: 1704800000000
+}
+```
+
+#### 5. 节点进度更新
+
+当正在执行的节点有进度更新时发送（频繁发送）：
+
+```javascript
+{
+  type: 'COMFYUI_NODE_PROGRESS',
+  nodeId: '1',
+  value: 50,
+  max: 100,
+  promptId: 'uuid-string',
+  timestamp: 1704800000000
+}
+```
+
+#### 6. 节点执行完成
+
+当某个节点执行完成时发送：
+
+```javascript
+{
+  type: 'COMFYUI_NODE_EXECUTED',
+  nodeId: '1',
+  promptId: 'uuid-string',
+  output: { /* 节点输出数据 */ },
+  timestamp: 1704800000000
+}
+```
+
+#### 7. 执行缓存
+
+某些节点使用了缓存结果时发送：
+
+```javascript
+{
+  type: 'COMFYUI_EXECUTION_CACHED',
+  promptId: 'uuid-string',
+  nodes: ['1', '2', '3'], // 使用缓存的节点 ID 列表
+  timestamp: 1704800000000
+}
+```
+
+#### 8. 执行成功
+
+整个工作流执行成功完成时发送：
+
+```javascript
+{
+  type: 'COMFYUI_EXECUTION_SUCCESS',
+  promptId: 'uuid-string',
+  timestamp: 1704800000000
+}
+```
+
+#### 9. 执行错误
+
+工作流执行出错时发送：
+
+```javascript
+{
+  type: 'COMFYUI_EXECUTION_ERROR',
+  promptId: 'uuid-string',
+  nodeId: '1',
+  nodeType: 'KSampler',
+  error: 'Error message here',
+  timestamp: 1704800000000
+}
+```
+
+---
+
+## 执行状态监听
+
+父页面可以实时监听工作流的执行状态。以下是一个完整的执行状态监听示例：
+
+```javascript
+// 存储执行状态
+const executionState = {
+  isExecuting: false,
+  currentPromptId: null,
+  executingNodeId: null,
+  nodeProgress: {},
+  completedNodes: new Set(),
+  totalNodes: 0
+}
+
+// 监听所有执行相关事件
+window.addEventListener('message', (event) => {
+  // 验证来源
+  if (event.origin !== ALLOWED_ORIGIN) return
+  if (event.source !== iframe.contentWindow) return
+
+  const { type } = event.data
+
+  switch (type) {
+    case 'COMFYUI_EXECUTION_START':
+      executionState.isExecuting = true
+      executionState.currentPromptId = event.data.promptId
+      executionState.completedNodes.clear()
+      addLog(`🚀 工作流开始执行: ${event.data.promptId}`)
+      break
+
+    case 'COMFYUI_NODE_EXECUTING':
+      executionState.executingNodeId = event.data.nodeId
+      addLog(`⚡ 节点 ${event.data.nodeId} 开始执行`)
+      break
+
+    case 'COMFYUI_NODE_PROGRESS': {
+      const { nodeId, value, max } = event.data
+      const percentage = Math.round((value / max) * 100)
+      executionState.nodeProgress[nodeId] = { value, max, percentage }
+      addLog(`📊 节点 ${nodeId} 进度: ${percentage}%`)
+      break
+    }
+
+    case 'COMFYUI_NODE_EXECUTED': {
+      const nodeId = event.data.nodeId
+      executionState.completedNodes.add(nodeId)
+      delete executionState.nodeProgress[nodeId]
+      const completed = executionState.completedNodes.size
+      addLog(`✅ 节点 ${nodeId} 完成 (${completed}/${executionState.totalNodes})`)
+      break
+    }
+
+    case 'COMFYUI_EXECUTION_CACHED': {
+      event.data.nodes.forEach(nodeId => {
+        executionState.completedNodes.add(nodeId)
+      })
+      addLog(`💾 ${event.data.nodes.length} 个节点使用缓存`)
+      break
+    }
+
+    case 'COMFYUI_EXECUTION_SUCCESS':
+      executionState.isExecuting = false
+      executionState.executingNodeId = null
+      addLog(`🎉 工作流执行成功!`)
+      break
+
+    case 'COMFYUI_EXECUTION_ERROR':
+      executionState.isExecuting = false
+      executionState.executingNodeId = null
+      addLog(`❌ 执行错误 - 节点 ${event.data.nodeId} (${event.data.nodeType}): ${event.data.error}`)
+      break
+  }
+})
+```
+
+### 使用示例：显示执行进度
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ComfyUI 执行状态监听</title>
+  <style>
+    #execution-status {
+      padding: 10px;
+      background: #f5f5f5;
+      margin-top: 20px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4CAF50, #8BC34A);
+      transition: width 0.3s;
+    }
+    .node-status {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .node {
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+    .node.executing {
+      background: #FFC107;
+      animation: pulse 1s infinite;
+    }
+    .node.completed {
+      background: #4CAF50;
+      color: white;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <iframe id="comfyui-iframe" src="http://localhost:5173/"></iframe>
+
+  <div id="execution-status">
+    <h3>执行状态</h3>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+    </div>
+    <div id="progress-text">等待执行...</div>
+    <div class="node-status" id="node-status"></div>
+  </div>
+
+  <script>
+    const iframe = document.getElementById('comfyui-iframe')
+    const ALLOWED_ORIGIN = 'http://localhost:5173'
+
+    const state = {
+      totalNodes: 0,
+      completedNodes: new Set(),
+      executingNodeId: null
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.origin !== ALLOWED_ORIGIN) return
+      if (event.source !== iframe.contentWindow) return
+
+      const { type } = event.data
+      const progressFill = document.getElementById('progress-fill')
+      const progressText = document.getElementById('progress-text')
+      const nodeStatus = document.getElementById('node-status')
+
+      switch (type) {
+        case 'COMFYUI_EXECUTION_START':
+          progressText.textContent = '执行中...'
+          break
+
+        case 'COMFYUI_EXECUTION_CACHED':
+          event.data.nodes.forEach(id => state.completedNodes.add(id))
+          updateProgress()
+          break
+
+        case 'COMFYUI_NODE_EXECUTING':
+          state.executingNodeId = event.data.nodeId
+          updateNodeStatus()
+          break
+
+        case 'COMFYUI_NODE_EXECUTED':
+          state.completedNodes.add(event.data.nodeId)
+          state.executingNodeId = null
+          updateProgress()
+          updateNodeStatus()
+          break
+
+        case 'COMFYUI_EXECUTION_SUCCESS':
+          progressText.textContent = '✅ 执行完成!'
+          progressFill.style.width = '100%'
+          state.executingNodeId = null
+          updateNodeStatus()
+          break
+
+        case 'COMFYUI_EXECUTION_ERROR':
+          progressText.textContent = `❌ 错误: ${event.data.error}`
+          state.executingNodeId = null
+          updateNodeStatus()
+          break
+      }
+    })
+
+    function updateProgress() {
+      const progressFill = document.getElementById('progress-fill')
+      const progressText = document.getElementById('progress-text')
+      const percentage = (state.completedNodes.size / state.totalNodes) * 100
+      progressFill.style.width = percentage + '%'
+      progressText.textContent = `${state.completedNodes.size}/${state.totalNodes} 节点完成`
+    }
+
+    function updateNodeStatus() {
+      const nodeStatus = document.getElementById('node-status')
+      nodeStatus.innerHTML = ''
+
+      // 显示执行中的节点
+      if (state.executingNodeId) {
+        const div = document.createElement('div')
+        div.className = 'node executing'
+        div.textContent = `节点 ${state.executingNodeId} 执行中`
+        nodeStatus.appendChild(div)
+      }
+
+      // 显示已完成的节点（最多显示5个）
+      const completed = Array.from(state.completedNodes).slice(-5)
+      completed.forEach(nodeId => {
+        const div = document.createElement('div')
+        div.className = 'node completed'
+        div.textContent = `节点 ${nodeId}`
+        nodeStatus.appendChild(div)
+      })
+    }
+  </script>
+</body>
+</html>
+```
+
+### 执行状态事件总结
+
+| 事件名 | 触发时机 | 使用场景 |
+|--------|---------|---------|
+| `COMFYUI_EXECUTION_START` | 工作流开始执行 | 初始化进度 UI，设置执行标志 |
+| `COMFYUI_NODE_EXECUTING` | 节点开始执行 | 高亮显示当前执行的节点 |
+| `COMFYUI_NODE_PROGRESS` | 节点执行进度更新 | 显示进度条、百分比 |
+| `COMFYUI_NODE_EXECUTED` | 节点执行完成 | 更新完成计数，移除高亮 |
+| `COMFYUI_EXECUTION_CACHED` | 节点使用缓存 | 标记节点已完成，不执行 |
+| `COMFYUI_EXECUTION_SUCCESS` | 工作流执行成功 | 显示成功消息，清理状态 |
+| `COMFYUI_EXECUTION_ERROR` | 工作流执行失败 | 显示错误信息，高亮错误节点 |
+
 ---
 
 ## 调试工具

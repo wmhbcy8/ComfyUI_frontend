@@ -5,10 +5,21 @@
  * 1. 监听工作流变化并发送 COMFYUI_WORKFLOW_CHANGE 消息
  * 2. 接收 COMFYUI_LOAD_WORKFLOW 消息并加载工作流
  * 3. 发送 COMFYUI_LOAD_WORKFLOW_ACK 确认消息
+ * 4. 接收父页面转发的后端 WebSocket 事件（Editor-only 模式）
  *
  * 父页面 → ComfyUI:
+ * 工作流相关:
  * - COMFYUI_LOAD_WORKFLOW { workflowJson, workflowId }
  * - COMFYUI_SET_LOCALE { locale }
+ *
+ * 执行状态相关（WebSocket 事件转发）:
+ * - COMFYUI_WS_EVENT { type: 'execution_start', data: {...} }
+ * - COMFYUI_WS_EVENT { type: 'executing', data: nodeId }
+ * - COMFYUI_WS_EVENT { type: 'progress', data: {...} }
+ * - COMFYUI_WS_EVENT { type: 'executed', data: {...} }
+ * - COMFYUI_WS_EVENT { type: 'execution_success', data: {...} }
+ * - COMFYUI_WS_EVENT { type: 'execution_error', data: {...} }
+ * - ... (其他所有后端 WebSocket 事件)
  *
  * ComfyUI → 父页面:
  * - COMFYUI_WORKFLOW_CHANGE { workflowJson, workflowApiJson, timestamp }
@@ -19,6 +30,13 @@
  * 数据格式说明:
  * - workflowJson: Canvas 格式（用于编辑），包含节点位置、尺寸等 UI 信息
  * - workflowApiJson: API 格式（用于执行），包含节点输入值和连接关系
+ *
+ * Editor-only 模式执行流程:
+ * 1. 父页面连接后端 WebSocket
+ * 2. 父页面接收 WebSocket 消息
+ * 3. 父页面通过 postMessage 发送 COMFYUI_WS_EVENT 到 iframe
+ * 4. iframe 接收并分发事件，触发前端的事件监听器
+ * 5. executionStore 等组件正常响应，更新 UI
  */
 
 import { api } from '@/scripts/api'
@@ -77,7 +95,7 @@ class WorkflowIntegrationService {
     // 监听工作流变化事件
     this.initWorkflowChangeListener()
 
-    // 监听来自父页面的消息
+    // 监听来自父页面的消息（包括 WebSocket 事件转发）
     this.initPostMessageListener()
 
     this.isInitialized = true
@@ -166,6 +184,11 @@ class WorkflowIntegrationService {
       const messageType = event.data?.type
 
       switch (messageType) {
+        case 'COMFYUI_WS_EVENT':
+          // 接收从父页面转发的 WebSocket 事件
+          this.handleWsEvent(event.data.data)
+          break
+
         case 'COMFYUI_LOAD_WORKFLOW':
           this.handleLoadWorkflow(
             event.data,
@@ -195,6 +218,55 @@ class WorkflowIntegrationService {
           break
       }
     })
+  }
+
+  /**
+   * 处理从父页面转发的 WebSocket 事件
+   * 将后端事件分发到 api 对象，触发前端的事件监听器
+   *
+   * 注意：此处理逻辑必须与 api.ts:696-728 的 WebSocket 消息处理保持一致
+   */
+  private handleWsEvent(wsMessage: any) {
+    if (!wsMessage || !wsMessage.type) return
+
+    const { type, data } = wsMessage
+
+    try {
+      switch (type) {
+        case 'status': {
+          // 提取 data.status 字段（与 api.ts:705 保持一致）
+          const statusData = data?.status ?? null
+
+          // 同时设置 client_id（如果存在）
+          if (data?.sid) {
+            api.clientId = data.sid
+            window.name = data.sid
+            sessionStorage.setItem('clientId', data.sid)
+          }
+
+          api.dispatchCustomEvent('status', statusData)
+          break
+        }
+
+        case 'executing': {
+          // 提取 display_node 或 node（与 api.ts:707-711 保持一致）
+          const nodeId = data?.display_node ?? data?.node ?? null
+          api.dispatchCustomEvent('executing', nodeId)
+          break
+        }
+
+        default:
+          // 其他事件直接分发 data（与 api.ts:727 保持一致）
+          api.dispatchCustomEvent(type, data)
+          break
+      }
+    } catch (error) {
+      console.error(
+        '[WorkflowIntegration] ❌ Failed to dispatch WS event:',
+        type,
+        error
+      )
+    }
   }
 
   /**
