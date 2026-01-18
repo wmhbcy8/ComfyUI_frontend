@@ -104,7 +104,7 @@ export function useWorkflowPersistence() {
       await useWorkflowService().loadBlankWorkflow()
       await useCommandStore().execute('Comfy.BrowseTemplates')
     } else {
-      await comfyApp.loadGraphData()
+      await useWorkflowService().loadBlankWorkflow()
     }
   }
 
@@ -114,11 +114,19 @@ export function useWorkflowPersistence() {
     try {
       const restored = await loadPreviousWorkflowFromStorage()
       if (!restored) {
-        await loadDefaultWorkflow()
+        // In editor-only mode, wait for external workflow loading
+        // Don't load blank workflow automatically
+        if (!isEditorOnly) {
+          await loadDefaultWorkflow()
+        }
       }
     } catch (err) {
       console.error('Error loading previous workflow', err)
-      await loadDefaultWorkflow()
+      // In editor-only mode, wait for external workflow loading
+      // Don't load blank workflow automatically
+      if (!isEditorOnly) {
+        await loadDefaultWorkflow()
+      }
     }
   }
 

@@ -150,6 +150,7 @@ export class ComfyApp {
   static clipspace_return_node = null
 
   vueAppReady: boolean
+  nodesRegistered: boolean
   api: ComfyApi
   ui: ComfyUI
   // @ts-expect-error fixme ts strict error
@@ -288,6 +289,7 @@ export class ComfyApp {
 
   constructor() {
     this.vueAppReady = false
+    this.nodesRegistered = false
     this.ui = new ComfyUI(this)
     this.api = api
     // Dummy placeholder elements before GraphCanvas is mounted.
@@ -965,6 +967,7 @@ export class ComfyApp {
     if (this.vueAppReady) {
       this.updateVueAppNodeDefs(defs)
     }
+    this.nodesRegistered = true
   }
 
   async registerNodeDef(nodeId: string, nodeDef: ComfyNodeDefV1) {

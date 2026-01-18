@@ -289,6 +289,18 @@ class WorkflowIntegrationService {
       // 导入 app 避免循环依赖
       const { app } = await import('@/scripts/app')
 
+      // 等待 rootGraph 和节点注册完成
+      let retries = 0
+      const maxRetries = 100 // 最多等待 10 秒
+      while ((!app.rootGraph || !app.nodesRegistered) && retries < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        retries++
+      }
+
+      if (!app.rootGraph || !app.nodesRegistered) {
+        throw new Error('ComfyApp not fully initialized')
+      }
+
       // 加载工作流
       await app.loadGraphData(workflowData, true, true, 'external_load', {
         showMissingNodesDialog: false,

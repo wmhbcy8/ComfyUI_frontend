@@ -65,8 +65,14 @@ const DEV_SEVER_FALLBACK_URL =
 const DEV_SERVER_COMFYUI_URL =
   DEV_SERVER_COMFYUI_ENV_URL || DEV_SEVER_FALLBACK_URL
 
+// In dev mode, always disable SSL verification to avoid cert issues
+// In cloud mode, disable SSL verification and change origin
+const devProxyConfig = IS_DEV ? { secure: false } : {}
+
 const cloudProxyConfig =
-  DISTRIBUTION === 'cloud' ? { secure: false, changeOrigin: true } : {}
+  DISTRIBUTION === 'cloud'
+    ? { secure: false, changeOrigin: true }
+    : devProxyConfig
 
 function handleGcsRedirect(
   proxyRes: IncomingMessage,
