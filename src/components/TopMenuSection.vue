@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="!workspaceStore.focusMode"
+    v-if="!workspaceStore.focusMode && !isEditorOnly"
     class="ml-1 flex flex-col gap-1 pt-1"
     @mouseenter="isTopMenuHovered = true"
     @mouseleave="isTopMenuHovered = false"
@@ -153,7 +153,7 @@ import { useQueueStore, useQueueUIStore } from '@/stores/queueStore'
 import { useRightSidePanelStore } from '@/stores/workspace/rightSidePanelStore'
 import { useSidebarTabStore } from '@/stores/workspace/sidebarTabStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
-import { isDesktop } from '@/platform/distribution/types'
+import { isDesktop, isEditorOnly } from '@/platform/distribution/types'
 import { useConflictAcknowledgment } from '@/workbench/extensions/manager/composables/useConflictAcknowledgment'
 import { useManagerState } from '@/workbench/extensions/manager/composables/useManagerState'
 import { ManagerTab } from '@/workbench/extensions/manager/types/comfyManagerTypes'

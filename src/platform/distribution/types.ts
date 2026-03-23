@@ -7,6 +7,7 @@ type Distribution = 'desktop' | 'localhost' | 'cloud'
 
 declare global {
   const __DISTRIBUTION__: Distribution
+  const __EDITOR_ONLY_MODE__: boolean
   const __IS_NIGHTLY__: boolean
 }
 
@@ -15,6 +16,7 @@ const DISTRIBUTION: Distribution = __DISTRIBUTION__
 
 export const isDesktop = DISTRIBUTION === 'desktop'
 export const isCloud = DISTRIBUTION === 'cloud'
+export const isEditorOnly = __EDITOR_ONLY_MODE__ || false
 
 /**
  * Whether this is a nightly build (from main branch).

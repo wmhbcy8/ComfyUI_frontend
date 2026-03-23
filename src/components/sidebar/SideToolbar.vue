@@ -19,7 +19,7 @@
       "
     >
       <div ref="topToolbarRef" :class="groupClasses">
-        <ComfyMenuButton />
+        <ComfyMenuButton v-if="!isEditorOnly" />
         <SidebarIcon
           v-for="tab in tabs"
           :key="tab.id"
@@ -36,7 +36,12 @@
         <SidebarTemplatesButton />
       </div>
 
-      <div ref="bottomToolbarRef" class="mt-auto" :class="groupClasses">
+      <div
+        v-if="!isEditorOnly"
+        ref="bottomToolbarRef"
+        class="mt-auto"
+        :class="groupClasses"
+      >
         <SidebarLogoutIcon
           v-if="userStore.isMultiUserServer"
           :is-small="isSmall"
@@ -67,7 +72,7 @@ import SidebarBottomPanelToggleButton from '@/components/sidebar/SidebarBottomPa
 import SidebarSettingsButton from '@/components/sidebar/SidebarSettingsButton.vue'
 import SidebarShortcutsToggleButton from '@/components/sidebar/SidebarShortcutsToggleButton.vue'
 import { useFeatureFlags } from '@/composables/useFeatureFlags'
-import { isCloud } from '@/platform/distribution/types'
+import { isCloud, isEditorOnly } from '@/platform/distribution/types'
 import { useSettingStore } from '@/platform/settings/settingStore'
 import { useTelemetry } from '@/platform/telemetry'
 import { useCanvasStore } from '@/renderer/core/canvas/canvasStore'
@@ -113,7 +118,19 @@ const isConnected = computed(
     sidebarStyle.value === 'connected'
 )
 
-const tabs = computed(() => workspaceStore.getSidebarTabs())
+const editorOnlyVisibleTabIds = new Set([
+  'node-library',
+  'node-group',
+  'nodes-and-groups'
+])
+
+const tabs = computed(() => {
+  const allTabs = workspaceStore.getSidebarTabs()
+  if (isEditorOnly) {
+    return allTabs.filter((tab) => editorOnlyVisibleTabIds.has(tab.id))
+  }
+  return allTabs
+})
 const selectedTab = computed(() => workspaceStore.sidebarTab.activeSidebarTab)
 
 /**

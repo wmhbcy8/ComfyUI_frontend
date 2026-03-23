@@ -5,7 +5,7 @@
   <LiteGraphCanvasSplitterOverlay v-if="comfyAppReady">
     <template v-if="showUI" #workflow-tabs>
       <div
-        v-if="workflowTabsPosition === 'Topbar'"
+        v-if="workflowTabsPosition === 'Topbar' && !isEditorOnly"
         class="workflow-tabs-container pointer-events-auto relative h-9.5 w-full"
       >
         <!-- Native drag area for Electron -->
@@ -173,7 +173,7 @@ import { isNativeWindow } from '@/utils/envUtil'
 import { forEachNode } from '@/utils/graphTraversalUtil'
 
 import SelectionRectangle from './SelectionRectangle.vue'
-import { isCloud } from '@/platform/distribution/types'
+import { isCloud, isEditorOnly } from '@/platform/distribution/types'
 import { useFeatureFlags } from '@/composables/useFeatureFlags'
 import { useInviteUrlLoader } from '@/platform/workspace/composables/useInviteUrlLoader'
 

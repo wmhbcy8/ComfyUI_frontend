@@ -580,6 +580,9 @@ export default defineConfig({
     __ALGOLIA_API_KEY__: JSON.stringify(process.env.ALGOLIA_API_KEY || ''),
     __USE_PROD_CONFIG__: process.env.USE_PROD_CONFIG === 'true',
     __DISTRIBUTION__: JSON.stringify(DISTRIBUTION),
+    __EDITOR_ONLY_MODE__: JSON.stringify(
+      process.env.EDITOR_ONLY_MODE === 'true'
+    ),
     __IS_NIGHTLY__: JSON.stringify(IS_NIGHTLY)
   },
 

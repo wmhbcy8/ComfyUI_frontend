@@ -1,5 +1,6 @@
 <template>
   <div
+    v-if="!isEditorOnly"
     ref="containerRef"
     class="workflow-tabs-container flex h-full max-w-full flex-auto flex-row overflow-hidden"
     :class="{ 'workflow-tabs-container-desktop': isDesktop }"
@@ -115,7 +116,7 @@ import type { ComfyWorkflow } from '@/platform/workflow/management/stores/workfl
 import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
 import { useCommandStore } from '@/stores/commandStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
-import { isDesktop } from '@/platform/distribution/types'
+import { isDesktop, isEditorOnly } from '@/platform/distribution/types'
 import { whileMouseDown } from '@/utils/mouseDownUtil'
 
 import WorkflowOverflowMenu from './WorkflowOverflowMenu.vue'
