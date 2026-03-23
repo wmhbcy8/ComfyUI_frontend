@@ -8,7 +8,7 @@ import type {
   ModelFile,
   ModelFolderInfo
 } from '@/platform/assets/schemas/assetSchema'
-import { isCloud, isEditorOnly } from '@/platform/distribution/types'
+import { isCloud } from '@/platform/distribution/types'
 import { useToastStore } from '@/platform/updates/common/toastStore'
 import type { IFuseOptions } from 'fuse.js'
 import {
@@ -510,10 +510,6 @@ export class ComfyApi extends EventTarget {
    * @param {boolean} isReconnect If the socket is connection is a reconnect attempt
    */
   private async createSocket(isReconnect?: boolean) {
-    if (isEditorOnly) {
-      return
-    }
-
     if (this.socket) {
       return
     }
