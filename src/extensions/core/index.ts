@@ -1,6 +1,7 @@
 import { isCloud, isNightly } from '@/platform/distribution/types'
 
 import './clipspace'
+import './ai8Communication'
 import './contextMenuFilter'
 import './customWidgets'
 import './dynamicPrompts'
